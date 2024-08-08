@@ -19,6 +19,19 @@
 #include <termios.h>
 #include <unistd.h>
 
+struct termios2 {
+    tcflag_t c_iflag; /* input mode flags */
+    tcflag_t c_oflag; /* output mode flags */
+    tcflag_t c_cflag; /* control mode flags */
+    tcflag_t c_lflag; /* local mode flags */
+    cc_t c_line; /* line discipline */
+    cc_t c_cc[19]; /* control characters */
+    speed_t c_ispeed; /* input speed */
+    speed_t c_ospeed; /* output speed */
+};
+
+#define BOTHER 0010000
+
 #if defined(__linux__)
 #include <linux/serial.h>
 #endif
@@ -396,20 +409,47 @@ void Serial::SerialImpl::reconfigurePort()
         }
         // Linux Support
 #elif defined(__linux__) && defined(TIOCSSERIAL)
-        struct serial_struct ser;
+        auto try_set_termios = [&]() -> bool {
+            struct serial_struct ser;
 
-        if (-1 == ioctl(fd_, TIOCGSERIAL, &ser)) {
-            THROW(IOException, errno);
-        }
+            if (-1 == ioctl(fd_, TIOCGSERIAL, &ser)) {
+                return false;
+            }
 
-        // set custom divisor
-        ser.custom_divisor = ser.baud_base / static_cast<int>(baudrate_);
-        // update flags
-        ser.flags &= ~ASYNC_SPD_MASK;
-        ser.flags |= ASYNC_SPD_CUST;
+            // set custom divisor
+            ser.custom_divisor = ser.baud_base / static_cast<int>(baudrate_);
+            // update flags
+            ser.flags &= ~ASYNC_SPD_MASK;
+            ser.flags |= ASYNC_SPD_CUST;
 
-        if (-1 == ioctl(fd_, TIOCSSERIAL, &ser)) {
-            THROW(IOException, errno);
+            if (-1 == ioctl(fd_, TIOCSSERIAL, &ser)) {
+                return false;
+            }
+
+            return true;
+        };
+
+        auto try_set_termios2 = [&]() -> bool {
+            struct termios2 term2;
+            if (ioctl(fd_, TCGETS2, &term2) == -1) {
+                return false;
+            }
+
+            term2.c_cflag &= ~CBAUD;
+            term2.c_cflag |= BOTHER;
+            term2.c_ispeed = baudrate_;
+            term2.c_ospeed = baudrate_;
+            if (ioctl(fd_, TCSETS2, &term2) == -1) {
+                return false;
+            }
+
+            return true;
+        };
+
+        if (!try_set_termios()) {
+            if (!try_set_termios2()) {
+                THROW(IOException, errno);
+            }
         }
 #else
         throw invalid_argument("OS does not currently support custom bauds");
