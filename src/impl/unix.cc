@@ -397,71 +397,6 @@ void Serial::SerialImpl::reconfigurePort()
 #endif
     default:
         custom_baud = true;
-        // OS X support
-#if defined(MAC_OS_X_VERSION_10_4) && (MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_4)
-        // Starting with Tiger, the IOSSIOSPEED ioctl can be used to set arbitrary baud rates
-        // other than those specified by POSIX. The driver for the underlying serial hardware
-        // ultimately determines which baud rates can be used. This ioctl sets both the input
-        // and output speed.
-        speed_t new_baud = static_cast<speed_t>(baudrate_);
-        if (-1 == ioctl(fd_, IOSSIOSPEED, &new_baud, 1)) {
-            THROW(IOException, errno);
-        }
-        // Linux Support
-#elif defined(__linux__) && defined(TIOCSSERIAL)
-        auto try_set_termios = [&]() -> bool {
-            struct serial_struct ser;
-
-            if (-1 == ioctl(fd_, TIOCGSERIAL, &ser)) {
-                return false;
-            }
-
-            // set custom divisor
-            ser.custom_divisor = ser.baud_base / static_cast<int>(baudrate_);
-            // update flags
-            ser.flags &= ~ASYNC_SPD_MASK;
-            ser.flags |= ASYNC_SPD_CUST;
-
-            if (-1 == ioctl(fd_, TIOCSSERIAL, &ser)) {
-                return false;
-            }
-
-            return true;
-        };
-
-        auto try_set_termios2 = [&]() -> bool {
-            struct termios2 term2;
-            if (ioctl(fd_, TCGETS2, &term2) == -1) {
-                return false;
-            }
-
-            term2.c_cflag &= ~CBAUD;
-            term2.c_cflag |= BOTHER;
-            term2.c_ispeed = baudrate_;
-            term2.c_ospeed = baudrate_;
-            if (ioctl(fd_, TCSETS2, &term2) == -1) {
-                return false;
-            }
-
-            return true;
-        };
-
-        if (!try_set_termios()) {
-            if (!try_set_termios2()) {
-                THROW(IOException, errno);
-            }
-        }
-#else
-        throw invalid_argument("OS does not currently support custom bauds");
-#endif
-    }
-    if (custom_baud == false) {
-#ifdef _BSD_SOURCE
-        ::cfsetspeed(&options, baud);
-#else
-        ::cfsetispeed(&options, baud);
-        ::cfsetospeed(&options, baud);
-#endif
     }
 
     // setup char len
@@ -564,6 +499,75 @@ void Serial::SerialImpl::reconfigurePort()
 
     // activate settings
     ::tcsetattr(fd_, TCSANOW, &options);
+
+    // baud rate must be set after configuring the other options otherwise it will be overwritten
+    if (custom_baud == false) {
+#ifdef _BSD_SOURCE
+        ::cfsetspeed(&options, baud);
+#else
+        ::cfsetispeed(&options, baud);
+        ::cfsetospeed(&options, baud);
+#endif
+    }
+    else {
+        // OS X support
+#if defined(MAC_OS_X_VERSION_10_4) && (MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_4)
+        // Starting with Tiger, the IOSSIOSPEED ioctl can be used to set arbitrary baud rates
+        // other than those specified by POSIX. The driver for the underlying serial hardware
+        // ultimately determines which baud rates can be used. This ioctl sets both the input
+        // and output speed.
+        speed_t new_baud = static_cast<speed_t>(baudrate_);
+        if (-1 == ioctl(fd_, IOSSIOSPEED, &new_baud, 1)) {
+            THROW(IOException, errno);
+        }
+        // Linux Support
+#elif defined(__linux__) && defined(TIOCSSERIAL)
+        auto try_set_termios = [&]() -> bool {
+            struct serial_struct ser;
+
+            if (-1 == ioctl(fd_, TIOCGSERIAL, &ser)) {
+                return false;
+            }
+
+            // set custom divisor
+            ser.custom_divisor = ser.baud_base / static_cast<int>(baudrate_);
+            // update flags
+            ser.flags &= ~ASYNC_SPD_MASK;
+            ser.flags |= ASYNC_SPD_CUST;
+
+            if (-1 == ioctl(fd_, TIOCSSERIAL, &ser)) {
+                return false;
+            }
+
+            return true;
+        };
+
+        auto try_set_termios2 = [&]() -> bool {
+            struct termios2 term2;
+            if (ioctl(fd_, TCGETS2, &term2) == -1) {
+                return false;
+            }
+
+            term2.c_cflag &= ~CBAUD;
+            term2.c_cflag |= BOTHER;
+            term2.c_ispeed = baudrate_;
+            term2.c_ospeed = baudrate_;
+            if (ioctl(fd_, TCSETS2, &term2) == -1) {
+                return false;
+            }
+
+            return true;
+        };
+
+        if (!try_set_termios()) {
+            if (!try_set_termios2()) {
+                THROW(IOException, errno);
+            }
+        }
+#else
+        throw invalid_argument("OS does not currently support custom bauds");
+#endif
+    }
 
     // Update byte_time_ based on the new settings.
     uint32_t bit_time_ns = 1e9 / baudrate_;
