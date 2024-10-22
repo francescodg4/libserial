@@ -7,13 +7,14 @@
  * http://opensource.org/licenses/MIT
  */
 
+#include <windows.h>
+
 #include "serial/serial.h"
 #include <cstring>
 #include <devguid.h>
 #include <initguid.h>
 #include <setupapi.h>
 #include <tchar.h>
-#include <windows.h>
 
 using serial::PortInfo;
 using std::string;
