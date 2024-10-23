@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
+
 project(serial)
 
 if(APPLE)
@@ -6,31 +7,22 @@ if(APPLE)
     find_library(FOUNDATION_LIBRARY Foundation)
 endif()
 
-## Include headers
+# Include headers
 include_directories(include)
 
-## Sources
-set(serial_SRCS
-    src/serial.cc
-    include/serial/serial.h
-    include/serial/v8stdint.h
-)
 if(APPLE)
     # If OSX
-    list(APPEND serial_SRCS src/impl/unix.cc)
-    list(APPEND serial_SRCS src/impl/list_ports/list_ports_osx.cc)
+    list(APPEND serial_SOURCES src/impl/unix.cc)
+    list(APPEND serial_SOURCES src/impl/list_ports/list_ports_osx.cc)
 elseif(UNIX)
-    # If unix
-    list(APPEND serial_SRCS src/impl/unix.cc)
-    list(APPEND serial_SRCS src/impl/list_ports/list_ports_linux.cc)
+    list(APPEND serial_SOURCES src/serial_linux.cpp)
 else()
-    # If windows
-    list(APPEND serial_SRCS src/impl/win.cc)
-    list(APPEND serial_SRCS src/impl/list_ports/list_ports_win.cc)
+    list(APPEND serial_SOURCES src/serial_windows.cpp)
 endif()
 
-## Add serial library
-add_library(${PROJECT_NAME} ${serial_SRCS})
+# Add serial library
+add_library(${PROJECT_NAME} ${serial_SOURCES})
+
 if(APPLE)
     target_link_libraries(${PROJECT_NAME} ${FOUNDATION_LIBRARY} ${IOKIT_LIBRARY})
 elseif(UNIX)
@@ -39,7 +31,7 @@ else()
     target_link_libraries(${PROJECT_NAME} setupapi)
 endif()
 
-## Uncomment for example
+# Uncomment for example
 add_executable(serial_example examples/serial_example.cc)
 add_dependencies(serial_example ${PROJECT_NAME})
 target_link_libraries(serial_example ${PROJECT_NAME})
