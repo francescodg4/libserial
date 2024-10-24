@@ -39,11 +39,11 @@
 #include <cstring>
 #include <exception>
 #include <limits>
-#include <serial/v8stdint.h>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <mutex>
 
 #ifdef _WIN32
 #include "Windows.h"
@@ -733,12 +733,11 @@ private:
     stopbits_t stopbits_; // Stop Bits
     flowcontrol_t flowcontrol_; // Flow Control
 
+    std::mutex m_read_mutex; // Mutex used to lock the read functions
+    std::mutex m_write_mutex; // Mutex used to lock the write functions
+
 #if _WIN32
     HANDLE fd_;
-    // Mutex used to lock the read functions
-    HANDLE read_mutex;
-    // Mutex used to lock the write functions
-    HANDLE write_mutex;
 #else
 
 #endif

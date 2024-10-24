@@ -42,11 +42,9 @@ Serial::Serial(const std::string& port,
     , stopbits_(stopbits)
     , flowcontrol_(flowcontrol)
 {
-    if (port_.empty() == false)
+    if (port_.empty() == false) {
         open();
-
-    read_mutex = CreateMutex(NULL, false, NULL);
-    write_mutex = CreateMutex(NULL, false, NULL);
+    }
 }
 
 Serial::~Serial()
@@ -56,9 +54,6 @@ Serial::~Serial()
     }
     catch (...) {
     }
-
-    CloseHandle(read_mutex);
-    CloseHandle(write_mutex);
 }
 
 void Serial::open()
@@ -107,8 +102,8 @@ const std::string& Serial::getPort() const { return port_; }
 
 void Serial::setPort(const std::string& port)
 {
-    // ScopedReadLock rlock(this->pimpl_);
-    // ScopedWriteLock wlock(this->pimpl_);
+    std::unique_lock read_lock(m_read_mutex);
+    std::unique_lock write_lock(m_write_mutex);
 
     bool was_open = isOpen();
 
@@ -129,6 +124,7 @@ void Serial::close()
         if (fd_ != INVALID_HANDLE_VALUE) {
             int ret;
             ret = CloseHandle(fd_);
+
             if (ret == 0) {
                 std::stringstream ss;
                 ss << "Error while closing serial port: " << GetLastError();
@@ -138,6 +134,7 @@ void Serial::close()
                 fd_ = INVALID_HANDLE_VALUE;
             }
         }
+
         is_open_ = false;
     }
 }
@@ -364,8 +361,8 @@ void Serial::setDTR(bool level)
 
 void Serial::flush()
 {
-    // ScopedReadLock rlock(this->pimpl_);
-    // ScopedWriteLock wlock(this->pimpl_);
+    std::unique_lock read_lock(m_read_mutex);
+    std::unique_lock write_lock(m_write_mutex);
 
     if (!is_open_) {
         throw PortNotOpenedException("Serial::flush");
@@ -376,7 +373,7 @@ void Serial::flush()
 
 void Serial::flushInput()
 {
-    // ScopedReadLock rlock(this->pimpl_);
+    std::unique_lock read_lock(m_read_mutex);
 
     if (!is_open_) {
         throw PortNotOpenedException("Serial::flushInput");
@@ -387,7 +384,7 @@ void Serial::flushInput()
 
 void Serial::flushOutput()
 {
-    // ScopedWriteLock lock(this->pimpl_);
+    std::unique_lock write_lock(m_write_mutex);
 
     if (!is_open_) {
         throw PortNotOpenedException("Serial::flushOutput");
@@ -398,7 +395,7 @@ void Serial::flushOutput()
 
 size_t Serial::read(uint8_t* buffer, size_t size)
 {
-    // ScopedReadLock lock(this->pimpl_);
+    std::unique_lock read_lock(m_read_mutex);
 
     if (!is_open_) {
         throw PortNotOpenedException("Serial::read");
@@ -417,7 +414,7 @@ size_t Serial::read(uint8_t* buffer, size_t size)
 
 size_t Serial::write(const uint8_t* data, size_t size)
 {
-    // ScopedWriteLock lock(this->pimpl_);
+    std::unique_lock write_lock(m_write_mutex);
 
     if (is_open_ == false) {
         throw PortNotOpenedException("Serial::write");
