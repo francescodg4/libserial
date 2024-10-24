@@ -396,6 +396,25 @@ void Serial::flushOutput()
     PurgeComm(fd_, PURGE_TXCLEAR);
 }
 
+size_t Serial::read(uint8_t* buffer, size_t size)
+{
+    // ScopedReadLock lock(this->pimpl_);
+
+    if (!is_open_) {
+        throw PortNotOpenedException("Serial::read");
+    }
+
+    DWORD bytes_read;
+
+    if (!ReadFile(fd_, buffer, static_cast<DWORD>(size), &bytes_read, NULL)) {
+        std::stringstream ss;
+        ss << "Error while reading from the serial port: " << GetLastError();
+        THROW(IOException, ss.str().c_str());
+    }
+
+    return (size_t)(bytes_read);
+}
+
 size_t Serial::write(const uint8_t* data, size_t size)
 {
     // ScopedWriteLock lock(this->pimpl_);

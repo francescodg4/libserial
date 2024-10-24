@@ -240,6 +240,26 @@ int main(int argc, char** argv)
 
             s1.write(std::string("Hello, world"));
             s1.write(std::vector<uint8_t>{0x00, 0x01, 0x02});
+
+            uint8_t buffer[256];
+            s1.read(buffer, sizeof(buffer));
+
+            std::string read = s1.read(50);
+
+            {
+                std::vector<uint8_t> buffer_1;
+
+                s1.read(buffer_1, 32);
+                s1.read(buffer_1, 32);
+            }
+
+            std::string output;
+            s1.read(output, 10);
+
+            s1.readline(output);
+            output = s1.readline();
+
+            std::vector<std::string> lines = s1.readlines();
         }
         catch (const std::exception& e) {
             std::cerr << "Unhandled Exception: " << e.what() << std::endl;

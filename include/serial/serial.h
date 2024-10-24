@@ -246,125 +246,207 @@ public:
      * port. */
     void waitByteTimes(size_t count);
 
-    // /*! Read a given amount of bytes from the serial port into a given buffer.
-    //  *
-    //  * The read function will return in one of three cases:
-    //  *  * The number of requested bytes was read.
-    //  *    * In this case the number of bytes requested will match the size_t
-    //  *      returned by read.
-    //  *  * A timeout occurred, in this case the number of bytes read will not
-    //  *    match the amount requested, but no exception will be thrown.  One of
-    //  *    two possible timeouts occurred:
-    //  *    * The inter byte timeout expired, this means that number of
-    //  *      milliseconds elapsed between receiving bytes from the serial port
-    //  *      exceeded the inter byte timeout.
-    //  *    * The total timeout expired, which is calculated by multiplying the
-    //  *      read timeout multiplier by the number of requested bytes and then
-    //  *      added to the read timeout constant.  If that total number of
-    //  *      milliseconds elapses after the initial call to read a timeout will
-    //  *      occur.
-    //  *  * An exception occurred, in this case an actual exception will be thrown.
-    //  *
-    //  * \param buffer An uint8_t array of at least the requested size.
-    //  * \param size A size_t defining how many bytes to be read.
-    //  *
-    //  * \return A size_t representing the number of bytes read as a result of the
-    //  *         call to read.
-    //  *
-    //  * \throw serial::PortNotOpenedException
-    //  * \throw serial::SerialException
-    //  */
-    // size_t
-    // read (uint8_t *buffer, size_t size);
+    /*! Read a given amount of bytes from the serial port into a given buffer.
+     *
+     * The read function will return in one of three cases:
+     *  * The number of requested bytes was read.
+     *    * In this case the number of bytes requested will match the size_t
+     *      returned by read.
+     *  * A timeout occurred, in this case the number of bytes read will not
+     *    match the amount requested, but no exception will be thrown.  One of
+     *    two possible timeouts occurred:
+     *    * The inter byte timeout expired, this means that number of
+     *      milliseconds elapsed between receiving bytes from the serial port
+     *      exceeded the inter byte timeout.
+     *    * The total timeout expired, which is calculated by multiplying the
+     *      read timeout multiplier by the number of requested bytes and then
+     *      added to the read timeout constant.  If that total number of
+     *      milliseconds elapses after the initial call to read a timeout will
+     *      occur.
+     *  * An exception occurred, in this case an actual exception will be thrown.
+     *
+     * \param buffer An uint8_t array of at least the requested size.
+     * \param size A size_t defining how many bytes to be read.
+     *
+     * \return A size_t representing the number of bytes read as a result of the
+     *         call to read.
+     *
+     * \throw serial::PortNotOpenedException
+     * \throw serial::SerialException
+     */
+    size_t read(uint8_t* buffer, size_t size);
 
-    // /*! Read a given amount of bytes from the serial port into a give buffer.
-    //  *
-    //  * \param buffer A reference to a std::vector of uint8_t.
-    //  * \param size A size_t defining how many bytes to be read.
-    //  *
-    //  * \return A size_t representing the number of bytes read as a result of the
-    //  *         call to read.
-    //  *
-    //  * \throw serial::PortNotOpenedException
-    //  * \throw serial::SerialException
-    //  */
-    // size_t
-    // read (std::vector<uint8_t> &buffer, size_t size = 1);
+    /*! Read a given amount of bytes from the serial port into a give buffer.
+     *
+     * \param buffer A reference to a std::vector of uint8_t.
+     * \param size A size_t defining how many bytes to be read.
+     *
+     * \return A size_t representing the number of bytes read as a result of the
+     *         call to read.
+     *
+     * \throw serial::PortNotOpenedException
+     * \throw serial::SerialException
+     */
+    size_t read(std::vector<uint8_t>& buffer, size_t size = 1)
+    {
+        std::unique_ptr<uint8_t[]> tmp = std::make_unique<uint8_t[]>(size);
 
-    // /*! Read a given amount of bytes from the serial port into a give buffer.
-    //  *
-    //  * \param buffer A reference to a std::string.
-    //  * \param size A size_t defining how many bytes to be read.
-    //  *
-    //  * \return A size_t representing the number of bytes read as a result of the
-    //  *         call to read.
-    //  *
-    //  * \throw serial::PortNotOpenedException
-    //  * \throw serial::SerialException
-    //  */
-    // size_t
-    // read (std::string &buffer, size_t size = 1);
+        size_t bytes_read = read(tmp.get(), size);
 
-    // /*! Read a given amount of bytes from the serial port and return a string
-    //  *  containing the data.
-    //  *
-    //  * \param size A size_t defining how many bytes to be read.
-    //  *
-    //  * \return A std::string containing the data read from the port.
-    //  *
-    //  * \throw serial::PortNotOpenedException
-    //  * \throw serial::SerialException
-    //  */
-    // std::string
-    // read (size_t size = 1);
+        buffer.insert(buffer.end(), tmp.get(), tmp.get() + bytes_read);
 
-    // /*! Reads in a line or until a given delimiter has been processed.
-    //  *
-    //  * Reads from the serial port until a single line has been read.
-    //  *
-    //  * \param buffer A std::string reference used to store the data.
-    //  * \param size A maximum length of a line, defaults to 65536 (2^16)
-    //  * \param eol A string to match against for the EOL.
-    //  *
-    //  * \return A size_t representing the number of bytes read.
-    //  *
-    //  * \throw serial::PortNotOpenedException
-    //  * \throw serial::SerialException
-    //  */
-    // size_t
-    // readline (std::string &buffer, size_t size = 65536, std::string eol = "\n");
+        return bytes_read;
+    }
 
-    // /*! Reads in a line or until a given delimiter has been processed.
-    //  *
-    //  * Reads from the serial port until a single line has been read.
-    //  *
-    //  * \param size A maximum length of a line, defaults to 65536 (2^16)
-    //  * \param eol A string to match against for the EOL.
-    //  *
-    //  * \return A std::string containing the line.
-    //  *
-    //  * \throw serial::PortNotOpenedException
-    //  * \throw serial::SerialException
-    //  */
-    // std::string
-    // readline (size_t size = 65536, std::string eol = "\n");
+    /*! Read a given amount of bytes from the serial port into a give buffer.
+     *
+     * \param buffer A reference to a std::string.
+     * \param size A size_t defining how many bytes to be read.
+     *
+     * \return A size_t representing the number of bytes read as a result of the
+     *         call to read.
+     *
+     * \throw serial::PortNotOpenedException
+     * \throw serial::SerialException
+     */
+    size_t read(std::string& buffer, size_t size = 1)
+    {
+        std::unique_ptr<uint8_t[]> tmp = std::make_unique<uint8_t[]>(size);
 
-    // /*! Reads in multiple lines until the serial port times out.
-    //  *
-    //  * This requires a timeout > 0 before it can be run. It will read until a
-    //  * timeout occurs and return a list of strings.
-    //  *
-    //  * \param size A maximum length of combined lines, defaults to 65536 (2^16)
-    //  *
-    //  * \param eol A string to match against for the EOL.
-    //  *
-    //  * \return A vector<string> containing the lines.
-    //  *
-    //  * \throw serial::PortNotOpenedException
-    //  * \throw serial::SerialException
-    //  */
-    // std::vector<std::string>
-    // readlines (size_t size = 65536, std::string eol = "\n");
+        size_t bytes_read = read(tmp.get(), size);
+
+        buffer.append(reinterpret_cast<const char*>(tmp.get()), bytes_read);
+
+        return bytes_read;
+    }
+
+    /*! Read a given amount of bytes from the serial port and return a string
+     *  containing the data.
+     *
+     * \param size A size_t defining how many bytes to be read.
+     *
+     * \return A std::string containing the data read from the port.
+     *
+     * \throw serial::PortNotOpenedException
+     * \throw serial::SerialException
+     */
+    std::string read(size_t size = 1)
+    {
+        std::string buffer;
+        read(buffer, size);
+        return std::move(buffer);
+    }
+
+    /*! Reads in a line or until a given delimiter has been processed.
+     *
+     * Reads from the serial port until a single line has been read.
+     *
+     * \param buffer A std::string reference used to store the data.
+     * \param size A maximum length of a line, defaults to 65536 (2^16)
+     * \param eol A string to match against for the EOL.
+     *
+     * \return A size_t representing the number of bytes read.
+     *
+     * \throw serial::PortNotOpenedException
+     * \throw serial::SerialException
+     */
+    size_t readline(std::string& line, size_t size = 65536, std::string eol = "\n")
+    {
+        std::unique_ptr<uint8_t[]> tmp = std::make_unique<uint8_t[]>(size * sizeof(uint8_t));
+
+        size_t read_so_far = 0;
+
+        while (read_so_far < size) {
+            size_t bytes_read = read(tmp.get() + read_so_far, 1);
+
+            if (bytes_read == 0) {
+                break; // Timeout occured on reading 1 byte
+            }
+
+            read_so_far += bytes_read;
+
+            if (std::string(reinterpret_cast<const char*>(tmp.get() + read_so_far - eol.length()), eol.length()) == eol) {
+                break; // EOL found
+            }
+        }
+
+        line.append(reinterpret_cast<const char*>(tmp.get()), read_so_far);
+
+        return read_so_far;
+    }
+
+    /*! Reads in a line or until a given delimiter has been processed.
+     *
+     * Reads from the serial port until a single line has been read.
+     *
+     * \param size A maximum length of a line, defaults to 65536 (2^16)
+     * \param eol A string to match against for the EOL.
+     *
+     * \return A std::string containing the line.
+     *
+     * \throw serial::PortNotOpenedException
+     * \throw serial::SerialException
+     */
+    std::string readline(size_t size = 65536, std::string eol = "\n")
+    {
+        std::string buffer;
+        readline(buffer, size, eol);
+        return std::move(buffer);
+    }
+
+    /*! Reads in multiple lines until the serial port times out.
+     *
+     * This requires a timeout > 0 before it can be run. It will read until a
+     * timeout occurs and return a list of strings.
+     *
+     * \param size A maximum length of combined lines, defaults to 65536 (2^16)
+     *
+     * \param eol A string to match against for the EOL.
+     *
+     * \return A vector<string> containing the lines.
+     *
+     * \throw serial::PortNotOpenedException
+     * \throw serial::SerialException
+     */
+    std::vector<std::string> readlines(size_t size = 65536, std::string eol = "\n")
+    {
+        std::vector<std::string> lines;
+
+        std::unique_ptr<uint8_t[]> tmp = std::make_unique<uint8_t[]>(size * sizeof(uint8_t));
+
+        size_t read_so_far = 0;
+        size_t start_of_line = 0;
+
+        while (read_so_far < size) {
+            size_t bytes_read = read(tmp.get() + read_so_far, 1);
+
+            read_so_far += bytes_read;
+
+            if (bytes_read == 0) {
+                if (start_of_line != read_so_far) {
+                    lines.push_back(std::string(reinterpret_cast<const char*>(tmp.get() + start_of_line), read_so_far - start_of_line));
+                }
+
+                break; // Timeout occured on reading 1 byte
+            }
+
+            if (std::string(reinterpret_cast<const char*>(tmp.get() + read_so_far - eol.length()), eol.length()) == eol) {
+                // EOL found
+                lines.push_back(std::string(reinterpret_cast<const char*>(tmp.get() + start_of_line), read_so_far - start_of_line));
+                start_of_line = read_so_far;
+            }
+
+            if (read_so_far == size) {
+                if (start_of_line != read_so_far) {
+                    lines.push_back(std::string(reinterpret_cast<const char*>(tmp.get() + start_of_line), read_so_far - start_of_line));
+                }
+
+                break; // Reached the maximum read length
+            }
+        }
+
+        return lines;
+    }
 
     /*! Write a string to the serial port.
      *
