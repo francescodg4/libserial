@@ -396,6 +396,25 @@ void Serial::flushOutput()
     PurgeComm(fd_, PURGE_TXCLEAR);
 }
 
+size_t Serial::write(const uint8_t* data, size_t size)
+{
+    // ScopedWriteLock lock(this->pimpl_);
+
+    if (is_open_ == false) {
+        throw PortNotOpenedException("Serial::write");
+    }
+
+    DWORD bytes_written;
+
+    if (!WriteFile(fd_, data, static_cast<DWORD>(size), &bytes_written, NULL)) {
+        std::stringstream ss;
+        ss << "Error while writing to the serial port: " << GetLastError();
+        THROW(IOException, ss.str().c_str());
+    }
+
+    return (size_t)(bytes_written);
+}
+
 void Serial::reconfigurePort()
 {
     if (fd_ == INVALID_HANDLE_VALUE) {

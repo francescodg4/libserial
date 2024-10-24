@@ -237,6 +237,9 @@ int main(int argc, char** argv)
             s1.flushOutput();
 
             s1.setPort("port2");
+
+            s1.write(std::string("Hello, world"));
+            s1.write(std::vector<uint8_t>{0x00, 0x01, 0x02});
         }
         catch (const std::exception& e) {
             std::cerr << "Unhandled Exception: " << e.what() << std::endl;

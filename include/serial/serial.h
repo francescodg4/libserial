@@ -366,53 +366,56 @@ public:
     // std::vector<std::string>
     // readlines (size_t size = 65536, std::string eol = "\n");
 
-    // /*! Write a string to the serial port.
-    //  *
-    //  * \param data A const reference containing the data to be written
-    //  * to the serial port.
-    //  *
-    //  * \param size A size_t that indicates how many bytes should be written from
-    //  * the given data buffer.
-    //  *
-    //  * \return A size_t representing the number of bytes actually written to
-    //  * the serial port.
-    //  *
-    //  * \throw serial::PortNotOpenedException
-    //  * \throw serial::SerialException
-    //  * \throw serial::IOException
-    //  */
-    // size_t
-    // write (const uint8_t *data, size_t size);
+    /*! Write a string to the serial port.
+     *
+     * \param data A const reference containing the data to be written
+     * to the serial port.
+     *
+     * \param size A size_t that indicates how many bytes should be written from
+     * the given data buffer.
+     *
+     * \return A size_t representing the number of bytes actually written to
+     * the serial port.
+     *
+     * \throw serial::PortNotOpenedException
+     * \throw serial::SerialException
+     * \throw serial::IOException
+     */
+    size_t write(const uint8_t* data, size_t size);
 
-    // /*! Write a string to the serial port.
-    //  *
-    //  * \param data A const reference containing the data to be written
-    //  * to the serial port.
-    //  *
-    //  * \return A size_t representing the number of bytes actually written to
-    //  * the serial port.
-    //  *
-    //  * \throw serial::PortNotOpenedException
-    //  * \throw serial::SerialException
-    //  * \throw serial::IOException
-    //  */
-    // size_t
-    // write (const std::vector<uint8_t> &data);
+    /*! Write a data buffer to the serial port.
+     *
+     * \param data A const reference containing the data to be written
+     * to the serial port.
+     *
+     * \return A size_t representing the number of bytes actually written to
+     * the serial port.
+     *
+     * \throw serial::PortNotOpenedException
+     * \throw serial::SerialException
+     * \throw serial::IOException
+     */
+    size_t write(const std::vector<uint8_t>& data)
+    {
+          return write(&data[0], data.size());
+    }
 
-    // /*! Write a string to the serial port.
-    //  *
-    //  * \param data A const reference containing the data to be written
-    //  * to the serial port.
-    //  *
-    //  * \return A size_t representing the number of bytes actually written to
-    //  * the serial port.
-    //  *
-    //  * \throw serial::PortNotOpenedException
-    //  * \throw serial::SerialException
-    //  * \throw serial::IOException
-    //  */
-    // size_t
-    // write (const std::string &data);
+    /*! Write a string to the serial port.
+     *
+     * \param data A const reference containing the data to be written
+     * to the serial port.
+     *
+     * \return A size_t representing the number of bytes actually written to
+     * the serial port.
+     *
+     * \throw serial::PortNotOpenedException
+     * \throw serial::SerialException
+     * \throw serial::IOException
+     */
+    size_t write(const std::string& data)
+    {
+        return write(reinterpret_cast<const uint8_t*>(data.c_str()), data.length());
+    }
 
     /*! Sets the serial port identifier.
      *
