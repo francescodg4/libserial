@@ -744,102 +744,59 @@ private:
 #endif
 };
 
-class SerialException : public std::exception {
-    // Disable copy constructors
-    SerialException& operator=(const SerialException&);
-    std::string e_what_;
-
+class SerialException : public std::runtime_error {
 public:
-    SerialException() {};
-    SerialException(const char* description)
-    {
-        std::stringstream ss;
-        ss << "SerialException " << description << " failed.";
-        e_what_ = ss.str();
-    }
-    SerialException(const SerialException& other)
-        : e_what_(other.e_what_)
+    SerialException(const std::string& description = "")
+        : std::runtime_error(description)
+        , m_message("SerialException " + description + " failed.")
     {
     }
-    virtual ~SerialException() throw() { }
-    virtual const char* what() const throw()
+
+    const char* what() const override { return m_message.c_str(); }
+
+protected:
+    std::string m_message;
+};
+
+class PortNotOpenedException : public SerialException {
+public:
+    PortNotOpenedException(const char* description)
+        : SerialException(description)
     {
-        return e_what_.c_str();
+        m_message = "PortNotOpenedException " + std::string(description) + " failed.";
     }
 };
 
 class IOException : public SerialException {
-    // Disable copy constructors
-    IOException& operator=(const IOException&);
-    std::string file_;
-    int line_;
-    std::string e_what_;
-    int errno_;
-
 public:
-    explicit IOException(std::string file, int line, int errnum)
+    explicit IOException(const std::string& file, int line, int errnum)
         : file_(file)
         , line_(line)
         , errno_(errnum)
     {
-        std::stringstream ss;
 #if defined(_WIN32) && !defined(__MINGW32__)
         char error_str[1024];
         strerror_s(error_str, 1024, errnum);
 #else
         char* error_str = strerror(errnum);
 #endif
-        ss << "IO Exception (" << errno_ << "): " << error_str;
-        ss << ", file " << file_ << ", line " << line_ << ".";
-        e_what_ = ss.str();
+        m_message = "IO Exception (" + std::to_string(errno_) + "): " + error_str + ", file " + file_ + ", line " + std::to_string(line_) + ".";
     }
-    explicit IOException(std::string file, int line, const char* description)
+
+    explicit IOException(const std::string& file, int line, const char* description)
         : file_(file)
         , line_(line)
         , errno_(0)
     {
-        std::stringstream ss;
-        ss << "IO Exception: " << description;
-        ss << ", file " << file_ << ", line " << line_ << ".";
-        e_what_ = ss.str();
-    }
-    virtual ~IOException() throw() { }
-    IOException(const IOException& other)
-        : line_(other.line_)
-        , e_what_(other.e_what_)
-        , errno_(other.errno_)
-    {
+        m_message = "IO Exception: " + std::string(description) + ", file " + file_ + ", line " + std::to_string(line_) + ".";
     }
 
     int getErrorNumber() const { return errno_; }
 
-    virtual const char* what() const throw()
-    {
-        return e_what_.c_str();
-    }
-};
-
-class PortNotOpenedException : SerialException {
-    // Disable copy constructors
-    const PortNotOpenedException& operator=(PortNotOpenedException);
-    std::string e_what_;
-
-public:
-    PortNotOpenedException(const char* description)
-    {
-        std::stringstream ss;
-        ss << "PortNotOpenedException " << description << " failed.";
-        e_what_ = ss.str();
-    }
-    PortNotOpenedException(const PortNotOpenedException& other)
-        : e_what_(other.e_what_)
-    {
-    }
-    virtual ~PortNotOpenedException() throw() { }
-    virtual const char* what() const throw()
-    {
-        return e_what_.c_str();
-    }
+private:
+    std::string file_;
+    int line_;
+    int errno_;
 };
 
 /*!
