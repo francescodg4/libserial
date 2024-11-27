@@ -479,7 +479,7 @@ public:
      */
     size_t write(const std::vector<uint8_t>& data)
     {
-          return write(&data[0], data.size());
+        return write(&data[0], data.size());
     }
 
     /*! Write a string to the serial port.
