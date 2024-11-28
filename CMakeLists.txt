@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.15)
 
 project(serial)
 
+Include(FetchContent)
+
 if(APPLE)
     find_library(IOKIT_LIBRARY IOKit)
     find_library(FOUNDATION_LIBRARY Foundation)
@@ -46,3 +48,26 @@ endif()
 add_executable(serial_example examples/serial_example.cc)
 add_dependencies(serial_example ${PROJECT_NAME})
 target_link_libraries(serial_example ${PROJECT_NAME})
+
+# Test
+# ---- catch2 ----
+FetchContent_Declare(
+    Catch2
+    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+    GIT_TAG v3.7.1
+)
+
+FetchContent_MakeAvailable(Catch2)
+
+add_executable(${PROJECT_NAME}_test
+    test/test_1.cpp
+)
+
+target_include_directories(${PROJECT_NAME}_test PRIVATE include/)
+target_link_libraries(${PROJECT_NAME}_test PRIVATE Catch2::Catch2WithMain)
+
+list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
+
+include(CTest)
+include(Catch)
+catch_discover_tests(${PROJECT_NAME}_test)
