@@ -1,12 +1,16 @@
 # Serial Communication Library
 
-对[wjwwood/serial](https://github.com/wjwwood/serial)进行优化
+This is a cross-platform library for interfacing with rs-232 serial-like ports written in C++.
 
-推荐使用这个仓库进行串口编程[SmartSerial](https://github.com/shuai132/SmartSerial)
-在这个库的基础上提供了更多方便功能和线程安全支持
+It provides a modern C++ interface with a workflow designed to look and feel like PySerial, but with the speed and control provided by C++.
+
+Optimized version of [wjwwood/serial](https://github.com/wjwwood/serial).
+
+It is recommended to use this repository for serial port programming: [SmartSerial](https://github.com/shuai132/SmartSerial).
+Based on this library, it provides more convenient functions and thread-safe support.
 
 ## Features
 
-* 优化cmake文件 去除catkin
-* 修复了一些编译警告和api限制
-* 优化了异常继承体系 串口相关的异常均继承自SerialException
+- Optimized cmake file, removed catkin.
+- Fixed some compilation warnings and API restrictions
+- Optimized the exception inheritance hierarchy. All serial-related.exceptions inherit from SerialException.
