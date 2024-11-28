@@ -89,35 +89,26 @@ struct Timeout {
      *
      * \return Timeout struct that represents this simple timeout provided.
      */
-    static Timeout simpleTimeout(uint32_t timeout) { return Timeout(max(), timeout, 0, timeout, 0); }
+    static Timeout simpleTimeout(uint32_t timeout) { return Timeout { max(), timeout, 0, timeout, 0 }; }
 
     /*! Number of milliseconds between bytes received to timeout on. */
-    uint32_t inter_byte_timeout;
+    uint32_t inter_byte_timeout = 0;
+
     /*! A constant number of milliseconds to wait after calling read. */
-    uint32_t read_timeout_constant;
+    uint32_t read_timeout_constant = 0;
+
     /*! A multiplier against the number of requested bytes to wait after
      *  calling read.
      */
-    uint32_t read_timeout_multiplier;
+    uint32_t read_timeout_multiplier = 0;
+
     /*! A constant number of milliseconds to wait after calling write. */
-    uint32_t write_timeout_constant;
+    uint32_t write_timeout_constant = 0;
+
     /*! A multiplier against the number of requested bytes to wait after
      *  calling write.
      */
-    uint32_t write_timeout_multiplier;
-
-    explicit Timeout(uint32_t inter_byte_timeout_ = 0,
-        uint32_t read_timeout_constant_ = 0,
-        uint32_t read_timeout_multiplier_ = 0,
-        uint32_t write_timeout_constant_ = 0,
-        uint32_t write_timeout_multiplier_ = 0)
-        : inter_byte_timeout(inter_byte_timeout_)
-        , read_timeout_constant(read_timeout_constant_)
-        , read_timeout_multiplier(read_timeout_multiplier_)
-        , write_timeout_constant(write_timeout_constant_)
-        , write_timeout_multiplier(write_timeout_multiplier_)
-    {
-    }
+    uint32_t write_timeout_multiplier = 0;
 };
 
 /*!
@@ -427,12 +418,11 @@ public:
         uint32_t write_timeout_constant,
         uint32_t write_timeout_multiplier)
     {
-        Timeout timeout(inter_byte_timeout,
+        return setTimeout(Timeout { inter_byte_timeout,
             read_timeout_constant,
             read_timeout_multiplier,
             write_timeout_constant,
-            write_timeout_multiplier);
-        return setTimeout(timeout);
+            write_timeout_multiplier });
     }
 
     /*! Gets the timeout for reads in seconds.
