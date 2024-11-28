@@ -20,6 +20,14 @@ using std::string;
 using std::stringstream;
 using std::wstring;
 
+static std::wstring convert_string_to_wstring(const std::string& src)
+{
+    int size_needed = MultiByteToWideChar(CP_ACP, 0, src.c_str(), (int)src.length(), 0, 0);
+    std::wstring dst(size_needed, 0);
+    MultiByteToWideChar(CP_ACP, 0, &src[0], (int)src.size(), &dst[0], size_needed);
+    return dst;
+}
+
 inline wstring _prefix_port_if_needed(const wstring& input)
 {
     static wstring windows_com_port_prefix = L"\\\\.\\";
@@ -68,7 +76,7 @@ void Serial::SerialImpl::open()
     }
 
     // See: https://github.com/wjwwood/serial/issues/84
-    wstring port_with_prefix = _prefix_port_if_needed(port_);
+    wstring port_with_prefix = _prefix_port_if_needed(convert_string_to_wstring(port_));
     LPCWSTR lp_port = port_with_prefix.c_str();
     fd_ = CreateFileW(lp_port, GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 
@@ -403,9 +411,9 @@ size_t Serial::SerialImpl::write(const uint8_t* data, size_t length)
     return (size_t)(bytes_written);
 }
 
-void Serial::SerialImpl::setPort(const string& port) { port_ = wstring(port.begin(), port.end()); }
+void Serial::SerialImpl::setPort(const string& port) { port_ = port; }
 
-string Serial::SerialImpl::getPort() const { return string(port_.begin(), port_.end()); }
+string Serial::SerialImpl::getPort() const { return port_; }
 
 void Serial::SerialImpl::setTimeout(const serial::Timeout& timeout)
 {
