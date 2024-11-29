@@ -1,5 +1,4 @@
-#if defined(_WIN32)
-
+#define NOMINMAX
 #include <windows.h>
 
 /*
@@ -10,20 +9,44 @@
  */
 
 #include "serial/serial.h"
+
 #include <cstring>
+#include <array>
+
 #include <devguid.h>
 #include <initguid.h>
 #include <setupapi.h>
 #include <tchar.h>
 
+static const size_t STRING_MAX_LENGTH = 256;
+
+static std::string parse_device_registry_property(HDEVINFO device_info_set, SP_DEVINFO_DATA device_info_data, DWORD Property)
+{
+    std::array<char, STRING_MAX_LENGTH> buffer;
+    std::fill(std::begin(buffer), std::end(buffer), '\0');
+
+    DWORD length;
+
+    BOOL success = SetupDiGetDeviceRegistryPropertyA(
+        device_info_set,
+        &device_info_data,
+        Property,
+        NULL,
+        (PBYTE)buffer.data(),
+        (DWORD)buffer.size(),
+        &length);
+
+    if (success == TRUE && length > 0) {
+        return std::string(buffer.data(), strnlen(buffer.data(), buffer.size()));
+    } else {
+        return std::string();
+    }
+}
+
 namespace serial {
 
 std::vector<serial::PortInfo> serial::list_ports()
 {
-    static const size_t port_name_max_length = 256;
-    static const size_t friendly_name_max_length = 256;
-    static const size_t hardware_id_max_length = 256;
-
     std::vector<PortInfo> devices_found;
 
     HDEVINFO device_info_set = SetupDiGetClassDevsA((const GUID*)&GUID_DEVCLASS_PORTS, NULL, NULL, DIGCF_PRESENT);
@@ -36,73 +59,35 @@ std::vector<serial::PortInfo> serial::list_ports()
     while (SetupDiEnumDeviceInfo(device_info_set, device_info_set_index, &device_info_data)) {
         device_info_set_index++;
 
-        // Get port name
+        // retrieve port name
         HKEY hkey = SetupDiOpenDevRegKey(device_info_set, &device_info_data, DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_READ);
 
-        TCHAR port_name[port_name_max_length];
-        DWORD port_name_length = port_name_max_length;
+        std::array<char, STRING_MAX_LENGTH> buffer;
+        std::fill(std::begin(buffer), std::end(buffer), '\0');
 
-        LONG return_code = RegQueryValueExA(hkey, _T("PortName"), NULL, NULL, (LPBYTE)port_name, &port_name_length);
+        DWORD length;
 
+        LONG return_code = RegQueryValueExA(hkey, _T("PortName"), NULL, NULL, (LPBYTE)buffer.data(), &length);
         RegCloseKey(hkey);
 
         if (return_code != EXIT_SUCCESS) {
             continue;
         }
 
-        if (port_name_length > 0 && port_name_length <= port_name_max_length) {
-            port_name[port_name_length - 1] = '\0';
-        } else {
-            port_name[0] = '\0';
-        }
+        std::string port_name = (length > 0) ? std::string(buffer.data(), strnlen(buffer.data(), buffer.size()))
+                                             : std::string();
 
-        // Ignore parallel ports
-        if (_tcsstr(port_name, _T("LPT")) != NULL) {
+        // ignore parallel ports
+        if (port_name.find("LPT") != std::string::npos) {
             continue;
-        }
-
-        // Get port friendly name
-        TCHAR friendly_name[friendly_name_max_length];
-        DWORD friendly_name_actual_length = 0;
-
-        BOOL got_friendly_name = SetupDiGetDeviceRegistryPropertyA(device_info_set,
-            &device_info_data,
-            SPDRP_FRIENDLYNAME,
-            NULL,
-            (PBYTE)friendly_name,
-            friendly_name_max_length,
-            &friendly_name_actual_length);
-
-        if (got_friendly_name == TRUE && friendly_name_actual_length > 0) {
-            friendly_name[friendly_name_actual_length - 1] = '\0';
-        } else {
-            friendly_name[0] = '\0';
-        }
-
-        // Get hardware ID
-        TCHAR hardware_id[hardware_id_max_length];
-        DWORD hardware_id_actual_length = 0;
-
-        BOOL got_hardware_id = SetupDiGetDeviceRegistryPropertyA(device_info_set,
-            &device_info_data,
-            SPDRP_HARDWAREID,
-            NULL,
-            (PBYTE)hardware_id,
-            hardware_id_max_length,
-            &hardware_id_actual_length);
-
-        if (got_hardware_id == TRUE && hardware_id_actual_length > 0) {
-            hardware_id[hardware_id_actual_length - 1] = '\0';
-        } else {
-            hardware_id[0] = '\0';
         }
 
         PortInfo port_entry;
         port_entry.port = port_name;
-        port_entry.description = friendly_name;
-        port_entry.hardware_id = hardware_id;
+        port_entry.description = parse_device_registry_property(device_info_set, device_info_data, SPDRP_FRIENDLYNAME);
+        port_entry.hardware_id = parse_device_registry_property(device_info_set, device_info_data, SPDRP_HARDWAREID);
 
-        devices_found.push_back(port_entry);
+        devices_found.emplace_back(port_entry);
     }
 
     SetupDiDestroyDeviceInfoList(device_info_set);
@@ -111,5 +96,3 @@ std::vector<serial::PortInfo> serial::list_ports()
 }
 
 } // namespace serial
-
-#endif // #if defined(_WIN32)

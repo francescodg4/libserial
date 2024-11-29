@@ -39,7 +39,19 @@ struct WindowsApi {
 
 Mock<WindowsApi> g_mock;
 
-WINSETUPAPI BOOL SetupDiEnumDeviceInfo(
+static void initialize(Mock<WindowsApi>& mock)
+{
+    Fake(
+        Method(mock, SetupDiEnumDeviceInfo),
+        Method(mock, SetupDiGetClassDevsA),
+        Method(mock, SetupDiOpenDevRegKey),
+        Method(mock, RegQueryValueExA),
+        Method(mock, RegCloseKey),
+        Method(mock, SetupDiGetDeviceRegistryPropertyA),
+        Method(mock, SetupDiDestroyDeviceInfoList));
+}
+
+BOOL SetupDiEnumDeviceInfo(
     HDEVINFO DeviceInfoSet,
     DWORD MemberIndex,
     PSP_DEVINFO_DATA DeviceInfoData)
@@ -47,14 +59,14 @@ WINSETUPAPI BOOL SetupDiEnumDeviceInfo(
     return g_mock().SetupDiEnumDeviceInfo(DeviceInfoSet, MemberIndex, DeviceInfoData);
 }
 
-WINSETUPAPI HDEVINFO SetupDiGetClassDevsA(const GUID* ClassGuid, PCSTR Enumerator, HWND hwndParent, DWORD Flags)
+HDEVINFO SetupDiGetClassDevsA(const GUID* ClassGuid, PCSTR Enumerator, HWND hwndParent, DWORD Flags)
 {
     return g_mock().SetupDiGetClassDevsA(ClassGuid, Enumerator, hwndParent, Flags);
 }
 
-WINSETUPAPI BOOL SetupDiDestroyDeviceInfoList(HDEVINFO DeviceInfoSet) { return g_mock().SetupDiDestroyDeviceInfoList(DeviceInfoSet); }
+BOOL SetupDiDestroyDeviceInfoList(HDEVINFO DeviceInfoSet) { return g_mock().SetupDiDestroyDeviceInfoList(DeviceInfoSet); }
 
-WINSETUPAPI HKEY SetupDiOpenDevRegKey(
+HKEY SetupDiOpenDevRegKey(
     HDEVINFO DeviceInfoSet,
     PSP_DEVINFO_DATA DeviceInfoData,
     DWORD Scope,
@@ -81,7 +93,7 @@ LSTATUS RegCloseKey(HKEY hKey)
     return g_mock().RegCloseKey(hKey);
 }
 
-WINSETUPAPI BOOL SetupDiGetDeviceRegistryPropertyA(
+BOOL SetupDiGetDeviceRegistryPropertyA(
     HDEVINFO DeviceInfoSet,
     PSP_DEVINFO_DATA DeviceInfoData,
     DWORD Property,
@@ -93,36 +105,23 @@ WINSETUPAPI BOOL SetupDiGetDeviceRegistryPropertyA(
     return g_mock().SetupDiGetDeviceRegistryPropertyA(DeviceInfoSet, DeviceInfoData, Property, PropertyRegDataType, PropertyBuffer, PropertyBufferSize, RequiredSize);
 }
 
-TEST_CASE("serial::list_ports enumerates valid port devices. Ignores parallel ports", "[serial]")
+TEST_CASE("serial::list_ports enumerates port devicesa and retrieves device info", "[serial]")
 {
     g_mock.Reset();
 
-    Fake(
-        Method(g_mock, SetupDiEnumDeviceInfo),
-        Method(g_mock, SetupDiGetClassDevsA),
-        Method(g_mock, SetupDiOpenDevRegKey),
-        Method(g_mock, RegQueryValueExA),
-        Method(g_mock, RegCloseKey),
-        Method(g_mock, SetupDiGetDeviceRegistryPropertyA),
-        Method(g_mock, SetupDiDestroyDeviceInfoList));
+    initialize(g_mock);
 
     When(Method(g_mock, SetupDiEnumDeviceInfo)).AlwaysDo([](HDEVINFO, DWORD MemberIndex, PSP_DEVINFO_DATA) {
         return (MemberIndex < 5) ? TRUE : FALSE;
     });
 
-    When(Method(g_mock, RegQueryValueExA)).AlwaysDo([index = 0](HKEY, LPCSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData) mutable {
-        if (index < 3) {
+    When(Method(g_mock, RegQueryValueExA))
+        .AlwaysDo([index = 0](HKEY, LPCSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData) mutable {
             snprintf((char*)lpData, 256, "Port-%d", index);
-        } else {
-            // Ignore parallel ports
-            snprintf((char*)lpData, 256, "LPT-%d", index);
-        }
-
-        *lpcbData = static_cast<DWORD>(strnlen((char*)lpData, 256)) + 1;
-        index++;
-
-        return ERROR_SUCCESS;
-    });
+            *lpcbData = static_cast<DWORD>(strnlen((char*)lpData, 256)) + 1;
+            index++;
+            return ERROR_SUCCESS;
+        });
 
     auto match = [](DWORD property) {
         return [property](HDEVINFO, PSP_DEVINFO_DATA, DWORD Property, PDWORD, PBYTE, DWORD, PDWORD) { return Property == property; };
@@ -144,10 +143,34 @@ TEST_CASE("serial::list_ports enumerates valid port devices. Ignores parallel po
 
     std::vector<serial::PortInfo> ports = serial::list_ports();
 
-    REQUIRE(ports.size() == 3);
+    REQUIRE(ports.size() == 5);
+
     for (int i = 0; i < ports.size(); i++) {
         REQUIRE(ports[i].hardware_id == "HardwareID-" + std::to_string(i));
         REQUIRE(ports[i].description == "FriendlyName-" + std::to_string(i));
         REQUIRE(ports[i].port == "Port-" + std::to_string(i));
     }
+}
+
+TEST_CASE("serial::list_ports ignores parallel ports on windows", "[serial]")
+{
+    g_mock.Reset();
+
+    initialize(g_mock);
+
+    When(Method(g_mock, SetupDiEnumDeviceInfo)).AlwaysDo([](HDEVINFO, DWORD MemberIndex, PSP_DEVINFO_DATA) {
+        return (MemberIndex < 5) ? TRUE : FALSE;
+    });
+
+    When(Method(g_mock, RegQueryValueExA)).AlwaysDo([index = 0](HKEY, LPCSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData) mutable {
+        snprintf((char*)lpData, 256, "LPT-%d", index);
+        *lpcbData = static_cast<DWORD>(strnlen((char*)lpData, 256)) + 1;
+        index++;
+
+        return ERROR_SUCCESS;
+    });
+
+    std::vector<serial::PortInfo> devices = serial::list_ports();
+
+    REQUIRE(devices.empty());
 }
