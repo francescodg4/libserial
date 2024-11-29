@@ -72,9 +72,9 @@ add_executable(${PROJECT_NAME}_test
     test/test_win.cpp
 )
 
-target_compile_definitions(${PROJECT_NAME} PRIVATE _SETUPAPI_ _ADVAPI32_)
+target_compile_definitions(${PROJECT_NAME} PRIVATE _SETUPAPI_ _ADVAPI32_ _KERNEL32_)
 
-target_compile_definitions(${PROJECT_NAME}_test PRIVATE _SETUPAPI_ _ADVAPI32_)
+target_compile_definitions(${PROJECT_NAME}_test PRIVATE _SETUPAPI_ _ADVAPI32_ _KERNEL32_)
 
 target_include_directories(${PROJECT_NAME}_test PRIVATE include/)
 

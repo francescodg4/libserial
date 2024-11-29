@@ -75,8 +75,8 @@ void Serial::SerialImpl::open()
     }
 
     // See: https://github.com/wjwwood/serial/issues/84
-    LPCWSTR lp_port = prefix_port_if_needed(convert_string_to_wstring(port_)).c_str();
-    fd_ = CreateFileW(lp_port, GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    std::wstring port_name = prefix_port_if_needed(convert_string_to_wstring(port_));
+    fd_ = CreateFileW(port_name.c_str(), GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 
     if (fd_ == INVALID_HANDLE_VALUE) {
         DWORD error = GetLastError();

@@ -35,6 +35,8 @@ struct WindowsApi {
     virtual LSTATUS RegCloseKey(HKEY hKey) = 0;
     virtual BOOL SetupDiGetDeviceRegistryPropertyA(HDEVINFO DeviceInfoSet, PSP_DEVINFO_DATA DeviceInfoData, DWORD Property, PDWORD PropertyRegDataType, PBYTE PropertyBuffer, DWORD PropertyBufferSize, PDWORD RequiredSize) = 0;
     virtual BOOL SetupDiDestroyDeviceInfoList(HDEVINFO DeviceInfoSet) = 0;
+    virtual HANDLE WINAPI CreateFileW(_In_ LPCWSTR lpFileName, _In_ DWORD dwDesiredAccess, _In_ DWORD dwShareMode, _In_opt_ LPSECURITY_ATTRIBUTES lpSecurityAttributes, _In_ DWORD dwCreationDisposition, _In_ DWORD dwFlagsAndAttributes, _In_opt_ HANDLE hTemplateFile) = 0;
+    virtual BOOL WINAPI GetCommState(_In_ HANDLE hFile, _Out_ LPDCB lpDCB) = 0;
 };
 
 Mock<WindowsApi> g_mock;
@@ -48,7 +50,8 @@ static void initialize(Mock<WindowsApi>& mock)
         Method(mock, RegQueryValueExA),
         Method(mock, RegCloseKey),
         Method(mock, SetupDiGetDeviceRegistryPropertyA),
-        Method(mock, SetupDiDestroyDeviceInfoList));
+        Method(mock, SetupDiDestroyDeviceInfoList),
+        Method(mock, CreateFileW));
 }
 
 BOOL SetupDiEnumDeviceInfo(
@@ -103,6 +106,23 @@ BOOL SetupDiGetDeviceRegistryPropertyA(
     PDWORD RequiredSize)
 {
     return g_mock().SetupDiGetDeviceRegistryPropertyA(DeviceInfoSet, DeviceInfoData, Property, PropertyRegDataType, PropertyBuffer, PropertyBufferSize, RequiredSize);
+}
+
+HANDLE WINAPI CreateFileW(
+    _In_ LPCWSTR lpFileName,
+    _In_ DWORD dwDesiredAccess,
+    _In_ DWORD dwShareMode,
+    _In_opt_ LPSECURITY_ATTRIBUTES lpSecurityAttributes,
+    _In_ DWORD dwCreationDisposition,
+    _In_ DWORD dwFlagsAndAttributes,
+    _In_opt_ HANDLE hTemplateFile)
+{
+    return g_mock().CreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+}
+
+BOOL WINAPI GetCommState(_In_ HANDLE hFile, _Out_ LPDCB lpDCB)
+{
+    return g_mock().GetCommState(hFile, lpDCB);
 }
 
 TEST_CASE("serial::list_ports enumerates port devicesa and retrieves device info", "[serial]")
@@ -177,6 +197,23 @@ TEST_CASE("serial::list_ports ignores parallel ports on windows", "[serial]")
 
 TEST_CASE("serial::Serial constructor", "[serial]")
 {
+    g_mock.Reset();
+
+    initialize(g_mock);
+
+    When(Method(g_mock, CreateFileW)).AlwaysDo([](_In_ LPCWSTR lpFileName, _In_ DWORD dwDesiredAccess, _In_ DWORD dwShareMode, _In_opt_ LPSECURITY_ATTRIBUTES lpSecurityAttributes, _In_ DWORD dwCreationDisposition, _In_ DWORD dwFlagsAndAttributes, _In_opt_ HANDLE hTemplateFile) {
+        return (HANDLE)1;
+    });
+
+    When(Method(g_mock, GetCommState)).AlwaysDo([](_In_ HANDLE hFile, _Out_ LPDCB lpDCB) {
+        return FALSE;
+    });
+
+    //     BOOL WINAPI GetCommState(_In_ HANDLE hFile, _Out_ LPDCB lpDCB)
+    // {
+    //     return g_mock().GetCommState(hFile, lpDCB);
+    // }
+
     REQUIRE_NOTHROW(serial::Serial());
     REQUIRE_NOTHROW(serial::Serial("Port", 115200, serial::Timeout::simpleTimeout(1000)));
 }
