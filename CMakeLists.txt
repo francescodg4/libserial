@@ -69,7 +69,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(FakeIt)
 
 add_executable(${PROJECT_NAME}_test
-    test/test_1.cpp
+    test/test_win.cpp
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE _SETUPAPI_ _ADVAPI32_)

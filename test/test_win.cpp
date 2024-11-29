@@ -93,7 +93,7 @@ WINSETUPAPI BOOL SetupDiGetDeviceRegistryPropertyA(
     return g_mock().SetupDiGetDeviceRegistryPropertyA(DeviceInfoSet, DeviceInfoData, Property, PropertyRegDataType, PropertyBuffer, PropertyBufferSize, RequiredSize);
 }
 
-TEST_CASE("A", "[serial]")
+TEST_CASE("serial::list_ports enumerates valid port devices. Ignores parallel ports", "[serial]")
 {
     g_mock.Reset();
 
@@ -124,15 +124,30 @@ TEST_CASE("A", "[serial]")
         return ERROR_SUCCESS;
     });
 
-    When((Method(g_mock, SetupDiGetDeviceRegistryPropertyA)).Using()).AlwaysDo([](HDEVINFO DeviceInfoSet, PSP_DEVINFO_DATA DeviceInfoData, DWORD Property, PDWORD PropertyRegDataType, PBYTE PropertyBuffer, DWORD PropertyBufferSize, PDWORD RequiredSize) {
-        return TRUE;
-    });
+    auto match = [](DWORD property) {
+        return [property](HDEVINFO, PSP_DEVINFO_DATA, DWORD Property, PDWORD, PBYTE, DWORD, PDWORD) { return Property == property; };
+    };
 
-    // When((Method(g_mock, SetupDiGetDeviceRegistryPropertyA))).AlwaysDo([](HDEVINFO DeviceInfoSet, PSP_DEVINFO_DATA DeviceInfoData, DWORD Property, PDWORD PropertyRegDataType, PBYTE PropertyBuffer, DWORD PropertyBufferSize, PDWORD RequiredSize) {
-    //     return TRUE;
-    // });
+    When((Method(g_mock, SetupDiGetDeviceRegistryPropertyA)).Matching(match(SPDRP_FRIENDLYNAME)))
+        .AlwaysDo([index = 0](HDEVINFO, PSP_DEVINFO_DATA, DWORD Property, PDWORD, PBYTE PropertyBuffer, DWORD PropertyBufferSize, PDWORD RequiredSize) mutable {
+            snprintf((char*)PropertyBuffer, PropertyBufferSize, "FriendlyName-%d", index++);
+            *RequiredSize = static_cast<DWORD>(strnlen((char*)PropertyBuffer, PropertyBufferSize)) + 1;
+            return TRUE;
+        });
+
+    When((Method(g_mock, SetupDiGetDeviceRegistryPropertyA)).Matching(match(SPDRP_HARDWAREID)))
+        .AlwaysDo([index = 0](HDEVINFO, PSP_DEVINFO_DATA, DWORD Property, PDWORD, PBYTE PropertyBuffer, DWORD PropertyBufferSize, PDWORD RequiredSize) mutable {
+            snprintf((char*)PropertyBuffer, PropertyBufferSize, "HardwareID-%d", index++);
+            *RequiredSize = static_cast<DWORD>(strnlen((char*)PropertyBuffer, PropertyBufferSize)) + 1;
+            return TRUE;
+        });
 
     std::vector<serial::PortInfo> ports = serial::list_ports();
 
-    REQUIRE(ports.size() == 5);
+    REQUIRE(ports.size() == 3);
+    for (int i = 0; i < ports.size(); i++) {
+        REQUIRE(ports[i].hardware_id == "HardwareID-" + std::to_string(i));
+        REQUIRE(ports[i].description == "FriendlyName-" + std::to_string(i));
+        REQUIRE(ports[i].port == "Port-" + std::to_string(i));
+    }
 }
