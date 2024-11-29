@@ -59,12 +59,30 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(Catch2)
 
+# ---- FakeIt ----
+FetchContent_Declare(
+    FakeIt
+    GIT_REPOSITORY https://github.com/eranpeer/FakeIt.git
+    GIT_TAG 2.4.1
+)
+
+FetchContent_MakeAvailable(FakeIt)
+
 add_executable(${PROJECT_NAME}_test
     test/test_1.cpp
 )
 
+target_compile_definitions(${PROJECT_NAME} PRIVATE _SETUPAPI_ _ADVAPI32_)
+
+target_compile_definitions(${PROJECT_NAME}_test PRIVATE _SETUPAPI_ _ADVAPI32_)
+
 target_include_directories(${PROJECT_NAME}_test PRIVATE include/)
-target_link_libraries(${PROJECT_NAME}_test PRIVATE Catch2::Catch2WithMain)
+
+target_link_libraries(${PROJECT_NAME}_test PRIVATE
+    serial
+    Catch2::Catch2WithMain
+    FakeIt::FakeIt-catch
+)
 
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 
