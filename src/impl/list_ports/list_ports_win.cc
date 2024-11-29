@@ -135,4 +135,6 @@ vector<PortInfo> serial::list_ports()
     return devices_found;
 }
 
+} // namespace serial
+
 #endif // #if defined(_WIN32)

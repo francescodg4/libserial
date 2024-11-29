@@ -2,7 +2,8 @@
 BasedOnStyle: WebKit
 BinPackArguments: false
 BinPackParameters: false
-ColumnLimit: 120
 InsertBraces: true
+SortIncludes: Never
+FixNamespaceComments: true
 
 ...
