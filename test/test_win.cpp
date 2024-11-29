@@ -174,3 +174,9 @@ TEST_CASE("serial::list_ports ignores parallel ports on windows", "[serial]")
 
     REQUIRE(devices.empty());
 }
+
+TEST_CASE("serial::Serial constructor", "[serial]")
+{
+    REQUIRE_NOTHROW(serial::Serial());
+    REQUIRE_NOTHROW(serial::Serial("Port", 115200, serial::Timeout::simpleTimeout(1000)));
+}
