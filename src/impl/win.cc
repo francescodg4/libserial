@@ -1,20 +1,8 @@
-#if defined(_WIN32)
-
 /* Copyright 2012 William Woodall and John Harrison */
 
 #include <sstream>
 
-#include "serial/impl/win.h"
-
-using serial::bytesize_t;
-using serial::flowcontrol_t;
-using serial::IOException;
-using serial::parity_t;
-using serial::PortNotOpenedException;
-using serial::Serial;
-using serial::SerialException;
-using serial::stopbits_t;
-using serial::Timeout;
+#include "serial/serial.h"
 
 static std::wstring convert_string_to_wstring(const std::string& src)
 {
@@ -34,9 +22,12 @@ static std::wstring prefix_port_if_needed(const std::wstring& input)
 
     return input;
 }
+namespace serial {
 
-Serial::SerialImpl::SerialImpl(const string& port,
-    unsigned long baudrate,
+Serial::Serial(
+    const std::string& port,
+    uint32_t baudrate,
+    serial::Timeout timeout,
     bytesize_t bytesize,
     parity_t parity,
     stopbits_t stopbits,
@@ -53,24 +44,43 @@ Serial::SerialImpl::SerialImpl(const string& port,
     if (port_.empty() == false) {
         open();
     }
+
     read_mutex = CreateMutex(NULL, false, NULL);
     write_mutex = CreateMutex(NULL, false, NULL);
 }
 
-Serial::SerialImpl::~SerialImpl()
+size_t Serial::write(const uint8_t* data, size_t size)
 {
-    try {
-        this->close();
-        CloseHandle(read_mutex);
-        CloseHandle(write_mutex);
-    } catch (...) {
+    if (is_open_ == false) {
+        throw PortNotOpenedException("Serial::write");
     }
+
+    DWORD bytes_written;
+
+    if (!WriteFile(fd_, data, static_cast<DWORD>(size), &bytes_written, NULL)) {
+        std::stringstream ss;
+        ss << "Error while writing to the serial port: " << GetLastError();
+        THROW(IOException, ss.str().c_str());
+    }
+
+    return (size_t)(bytes_written);
 }
 
-void Serial::SerialImpl::open()
+void Serial::setTimeout(const Timeout& timeout)
+{
+}
+
+bool Serial::isOpen() const { return is_open_; }
+
+std::string Serial::read(size_t size)
+{
+    return 0;
+}
+
+void Serial::open()
 {
     if (port_.empty()) {
-        throw invalid_argument("Empty port is invalid.");
+        throw std::invalid_argument("Empty port is invalid.");
     }
 
     if (is_open_ == true) {
@@ -101,7 +111,7 @@ void Serial::SerialImpl::open()
     is_open_ = true;
 }
 
-void Serial::SerialImpl::reconfigurePort()
+void Serial::reconfigurePort()
 {
     if (fd_ == INVALID_HANDLE_VALUE) {
         // Can only operate on a valid file descriptor
@@ -274,7 +284,7 @@ void Serial::SerialImpl::reconfigurePort()
     } else if (bytesize_ == fivebits) {
         dcbSerialParams.ByteSize = 5;
     } else {
-        throw invalid_argument("invalid char len");
+        throw std::invalid_argument("invalid char len");
     }
 
     // setup stopbits
@@ -285,7 +295,7 @@ void Serial::SerialImpl::reconfigurePort()
     } else if (stopbits_ == stopbits_two) {
         dcbSerialParams.StopBits = TWOSTOPBITS;
     } else {
-        throw invalid_argument("invalid stop bit");
+        throw std::invalid_argument("invalid stop bit");
     }
 
     // setup parity
@@ -300,7 +310,7 @@ void Serial::SerialImpl::reconfigurePort()
     } else if (parity_ == parity_space) {
         dcbSerialParams.Parity = SPACEPARITY;
     } else {
-        throw invalid_argument("invalid parity");
+        throw std::invalid_argument("invalid parity");
     }
 
     // setup flowcontrol
@@ -341,6 +351,30 @@ void Serial::SerialImpl::reconfigurePort()
     }
 }
 
+} // namespace serial
+
+#if 0
+using serial::bytesize_t;
+using serial::flowcontrol_t;
+using serial::IOException;
+using serial::parity_t;
+using serial::PortNotOpenedException;
+using serial::Serial;
+using serial::SerialException;
+using serial::stopbits_t;
+using serial::Timeout;
+
+Serial::SerialImpl::~SerialImpl()
+{
+    try {
+        this->close();
+        CloseHandle(read_mutex);
+        CloseHandle(write_mutex);
+    } catch (...) {
+    }
+}
+
+
 void Serial::SerialImpl::close()
 {
     if (is_open_ == true) {
@@ -358,8 +392,6 @@ void Serial::SerialImpl::close()
         is_open_ = false;
     }
 }
-
-bool Serial::SerialImpl::isOpen() const { return is_open_; }
 
 size_t Serial::SerialImpl::available()
 {
@@ -398,20 +430,6 @@ size_t Serial::SerialImpl::read(uint8_t* buf, size_t size)
         THROW(IOException, ss.str().c_str());
     }
     return (size_t)(bytes_read);
-}
-
-size_t Serial::SerialImpl::write(const uint8_t* data, size_t length)
-{
-    if (is_open_ == false) {
-        throw PortNotOpenedException("Serial::write");
-    }
-    DWORD bytes_written;
-    if (!WriteFile(fd_, data, static_cast<DWORD>(length), &bytes_written, NULL)) {
-        std::stringstream ss;
-        ss << "Error while writing to the serial port: " << GetLastError();
-        THROW(IOException, ss.str().c_str());
-    }
-    return (size_t)(bytes_written);
 }
 
 void Serial::SerialImpl::setPort(const string& port) { port_ = port; }
@@ -641,5 +659,4 @@ void Serial::SerialImpl::writeUnlock()
         THROW(IOException, "Error releasing write mutex.");
     }
 }
-
-#endif // #if defined(_WIN32)
+#endif // 0

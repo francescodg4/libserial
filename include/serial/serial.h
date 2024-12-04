@@ -36,6 +36,12 @@
 #ifndef SERIAL_H
 #define SERIAL_H
 
+#ifdef _WIN32
+#define NOMINMAX
+#include <windows.h>
+#else
+#endif
+
 #include <cstring>
 #include <exception>
 #include <limits>
@@ -154,9 +160,6 @@ public:
         parity_t parity = parity_none,
         stopbits_t stopbits = stopbits_one,
         flowcontrol_t flowcontrol = flowcontrol_none);
-
-    /*! Destructor */
-    virtual ~Serial();
 
     /*!
      * Opens the serial port as long as the port is set and the port isn't
@@ -339,7 +342,7 @@ public:
      * \throw serial::SerialException
      * \throw serial::IOException
      */
-    size_t write(const std::vector<uint8_t>& data);
+    size_t write(const std::vector<uint8_t>& data) { return write(data.data(), data.size()); }
 
     /*! Write a string to the serial port.
      *
@@ -353,7 +356,7 @@ public:
      * \throw serial::SerialException
      * \throw serial::IOException
      */
-    size_t write(const std::string& data);
+    size_t write(const std::string& data) { return write(reinterpret_cast<const uint8_t*>(data.c_str()), data.length()); }
 
     /*! Sets the serial port identifier.
      *
@@ -582,6 +585,28 @@ private:
     Serial(const Serial&);
     Serial& operator=(const Serial&);
 
+    void reconfigurePort();
+
+private:
+#if _WIN32
+    std::string port_; // Path to the file descriptor
+    HANDLE fd_;
+
+    bool is_open_;
+
+    Timeout timeout_; // Timeout for read operations
+    unsigned long baudrate_; // Baudrate
+
+    parity_t parity_; // Parity
+    bytesize_t bytesize_; // Size of the bytes
+    stopbits_t stopbits_; // Stop Bits
+    flowcontrol_t flowcontrol_; // Flow Control
+
+    // Mutex used to lock the read functions
+    HANDLE read_mutex;
+    // Mutex used to lock the write functions
+    HANDLE write_mutex;
+#else
     // Pimpl idiom, d_pointer
     class SerialImpl;
     SerialImpl* pimpl_;
@@ -589,6 +614,7 @@ private:
     // Scoped Lock Classes
     class ScopedReadLock;
     class ScopedWriteLock;
+#endif
 
     // Read common function
     size_t read_(uint8_t* buffer, size_t size);
