@@ -37,6 +37,9 @@ struct WindowsApi {
     virtual BOOL SetupDiDestroyDeviceInfoList(HDEVINFO DeviceInfoSet) = 0;
     virtual HANDLE WINAPI CreateFileW(_In_ LPCWSTR lpFileName, _In_ DWORD dwDesiredAccess, _In_ DWORD dwShareMode, _In_opt_ LPSECURITY_ATTRIBUTES lpSecurityAttributes, _In_ DWORD dwCreationDisposition, _In_ DWORD dwFlagsAndAttributes, _In_opt_ HANDLE hTemplateFile) = 0;
     virtual BOOL WINAPI GetCommState(_In_ HANDLE hFile, _Out_ LPDCB lpDCB) = 0;
+    virtual BOOL WINAPI SetCommState(_In_ HANDLE hFile, _In_ LPDCB lpDCB) = 0;
+    virtual BOOL WINAPI SetCommTimeouts(_In_ HANDLE hFile, _In_ LPCOMMTIMEOUTS lpCommTimeouts) = 0;
+    virtual BOOL WINAPI CloseHandle(_In_ _Post_ptr_invalid_ HANDLE hObject);
 };
 
 Mock<WindowsApi> g_mock;
@@ -51,7 +54,35 @@ static void initialize(Mock<WindowsApi>& mock)
         Method(mock, RegCloseKey),
         Method(mock, SetupDiGetDeviceRegistryPropertyA),
         Method(mock, SetupDiDestroyDeviceInfoList),
-        Method(mock, CreateFileW));
+        Method(mock, CreateFileW),
+        Method(mock, GetCommState),
+        Method(mock, SetCommState),
+        Method(mock, SetCommTimeouts),
+        Method(mock, CloseHandle));
+
+    When(Method(g_mock, CreateFileW)).AlwaysDo([](_In_ LPCWSTR lpFileName, _In_ DWORD dwDesiredAccess, _In_ DWORD dwShareMode, _In_opt_ LPSECURITY_ATTRIBUTES lpSecurityAttributes, _In_ DWORD dwCreationDisposition, _In_ DWORD dwFlagsAndAttributes, _In_opt_ HANDLE hTemplateFile) {
+        return (HANDLE)1;
+    });
+
+    When(Method(g_mock, GetCommState)).AlwaysDo([](_In_ HANDLE hFile, _Out_ LPDCB lpDCB) {
+        return TRUE;
+    });
+
+    When(Method(g_mock, SetCommState)).AlwaysDo([](_In_ HANDLE hFile, _In_ LPDCB lpDCB) {
+        return TRUE;
+    });
+
+    When(Method(g_mock, SetCommTimeouts)).AlwaysDo([](_In_ HANDLE hFile, _In_ LPCOMMTIMEOUTS lpCommTimeouts) {
+        return TRUE;
+    });
+
+    When(Method(g_mock, SetCommTimeouts)).AlwaysDo([](_In_ HANDLE hFile, _In_ LPCOMMTIMEOUTS lpCommTimeouts) {
+        return TRUE;
+    });
+
+    When(Method(g_mock, CloseHandle)).AlwaysDo([](_In_ _Post_ptr_invalid_ HANDLE hObject) {
+        return TRUE;
+    });
 }
 
 BOOL SetupDiEnumDeviceInfo(
@@ -120,9 +151,24 @@ HANDLE WINAPI CreateFileW(
     return g_mock().CreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
 }
 
-BOOL WINAPI GetCommState(_In_ HANDLE hFile, _Out_ LPDCB lpDCB)
+WINBASEAPI BOOL WINAPI GetCommState(_In_ HANDLE hFile, _Out_ LPDCB lpDCB)
 {
     return g_mock().GetCommState(hFile, lpDCB);
+}
+
+WINBASEAPI BOOL WINAPI SetCommState(_In_ HANDLE hFile, _In_ LPDCB lpDCB)
+{
+    return g_mock().SetCommState(hFile, lpDCB);
+}
+
+WINBASEAPI BOOL WINAPI SetCommTimeouts(_In_ HANDLE hFile, _In_ LPCOMMTIMEOUTS lpCommTimeouts)
+{
+    return g_mock().SetCommTimeouts(hFile, lpCommTimeouts);
+}
+
+WINBASEAPI BOOL WINAPI CloseHandle(_In_ _Post_ptr_invalid_ HANDLE hObject)
+{
+    return g_mock().CloseHandle(hObject);
 }
 
 TEST_CASE("serial::list_ports enumerates port devicesa and retrieves device info", "[serial]")
@@ -206,14 +252,38 @@ TEST_CASE("serial::Serial constructor", "[serial]")
     });
 
     When(Method(g_mock, GetCommState)).AlwaysDo([](_In_ HANDLE hFile, _Out_ LPDCB lpDCB) {
+        return TRUE;
+    });
+
+    When(Method(g_mock, SetCommState)).AlwaysDo([](_In_ HANDLE hFile, _In_ LPDCB lpDCB) {
+        return TRUE;
+    });
+
+    When(Method(g_mock, SetCommTimeouts)).AlwaysDo([](_In_ HANDLE hFile, _In_ LPCOMMTIMEOUTS lpCommTimeouts) {
+        return TRUE;
+    });
+
+    When(Method(g_mock, SetCommTimeouts)).AlwaysDo([](_In_ HANDLE hFile, _In_ LPCOMMTIMEOUTS lpCommTimeouts) {
+        return TRUE;
+    });
+
+    When(Method(g_mock, CloseHandle)).AlwaysDo([](_In_ _Post_ptr_invalid_ HANDLE hObject) {
+        return TRUE;
+    });
+
+    REQUIRE_NOTHROW(serial::Serial());
+    REQUIRE_NOTHROW(serial::Serial("Port", 115200, serial::Timeout::simpleTimeout(1000)));
+}
+
+TEST_CASE("serial::Serial destructor raises exception", "[serial]")
+{
+    g_mock.Reset();
+
+    initialize(g_mock);
+
+    When(Method(g_mock, CloseHandle)).AlwaysDo([](_In_ _Post_ptr_invalid_ HANDLE hObject) {
         return FALSE;
     });
 
-    //     BOOL WINAPI GetCommState(_In_ HANDLE hFile, _Out_ LPDCB lpDCB)
-    // {
-    //     return g_mock().GetCommState(hFile, lpDCB);
-    // }
-
-    REQUIRE_NOTHROW(serial::Serial());
     REQUIRE_NOTHROW(serial::Serial("Port", 115200, serial::Timeout::simpleTimeout(1000)));
 }
