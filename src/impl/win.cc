@@ -59,9 +59,12 @@ Serial::SerialImpl::SerialImpl(const string& port,
 
 Serial::SerialImpl::~SerialImpl()
 {
-    this->close();
-    CloseHandle(read_mutex);
-    CloseHandle(write_mutex);
+    try {
+        this->close();
+        CloseHandle(read_mutex);
+        CloseHandle(write_mutex);
+    } catch (...) {
+    }
 }
 
 void Serial::SerialImpl::open()
