@@ -40,6 +40,7 @@ struct WindowsApi {
     virtual BOOL WINAPI SetCommState(_In_ HANDLE hFile, _In_ LPDCB lpDCB) = 0;
     virtual BOOL WINAPI SetCommTimeouts(_In_ HANDLE hFile, _In_ LPCOMMTIMEOUTS lpCommTimeouts) = 0;
     virtual BOOL WINAPI CloseHandle(_In_ _Post_ptr_invalid_ HANDLE hObject);
+    virtual BOOL WINAPI WriteFile(_In_ HANDLE hFile, _In_reads_bytes_opt_(nNumberOfBytesToWrite) LPCVOID lpBuffer, _In_ DWORD nNumberOfBytesToWrite, _Out_opt_ LPDWORD lpNumberOfBytesWritten, _Inout_opt_ LPOVERLAPPED lpOverlapped);
 };
 
 Mock<WindowsApi> g_mock;
@@ -58,7 +59,8 @@ static void initialize(Mock<WindowsApi>& mock)
         Method(mock, GetCommState),
         Method(mock, SetCommState),
         Method(mock, SetCommTimeouts),
-        Method(mock, CloseHandle));
+        Method(mock, CloseHandle),
+        Method(mock, WriteFile));
 
     When(Method(g_mock, CreateFileW)).AlwaysDo([](_In_ LPCWSTR lpFileName, _In_ DWORD dwDesiredAccess, _In_ DWORD dwShareMode, _In_opt_ LPSECURITY_ATTRIBUTES lpSecurityAttributes, _In_ DWORD dwCreationDisposition, _In_ DWORD dwFlagsAndAttributes, _In_opt_ HANDLE hTemplateFile) {
         return (HANDLE)1;
@@ -169,6 +171,11 @@ WINBASEAPI BOOL WINAPI SetCommTimeouts(_In_ HANDLE hFile, _In_ LPCOMMTIMEOUTS lp
 WINBASEAPI BOOL WINAPI CloseHandle(_In_ _Post_ptr_invalid_ HANDLE hObject)
 {
     return g_mock().CloseHandle(hObject);
+}
+
+WINBASEAPI BOOL WINAPI WriteFile(_In_ HANDLE hFile, _In_reads_bytes_opt_(nNumberOfBytesToWrite) LPCVOID lpBuffer, _In_ DWORD nNumberOfBytesToWrite, _Out_opt_ LPDWORD lpNumberOfBytesWritten, _Inout_opt_ LPOVERLAPPED lpOverlapped)
+{
+    return g_mock().WriteFile(hFile, lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten, lpOverlapped);
 }
 
 TEST_CASE("serial::list_ports enumerates port devicesa and retrieves device info", "[serial]")
@@ -286,4 +293,55 @@ TEST_CASE("serial::Serial destructor raises exception", "[serial]")
     });
 
     REQUIRE_NOTHROW(serial::Serial("Port", 115200, serial::Timeout::simpleTimeout(1000)));
+}
+
+TEST_CASE("serial::Serial::write", "[serial]")
+{
+    g_mock.Reset();
+
+    initialize(g_mock);
+
+    char buffer[1024];
+    memset(buffer, 0, sizeof(buffer));
+
+    When(Method(g_mock, WriteFile))
+        .AlwaysDo([&](_In_ HANDLE hFile, _In_reads_bytes_opt_(nNumberOfBytesToWrite) LPCVOID lpBuffer, _In_ DWORD nNumberOfBytesToWrite, _Out_opt_ LPDWORD lpNumberOfBytesWritten, _Inout_opt_ LPOVERLAPPED lpOverlapped) {
+            *lpNumberOfBytesWritten = nNumberOfBytesToWrite;
+            memcpy(buffer, lpBuffer, std::min((size_t)nNumberOfBytesToWrite, sizeof(buffer)));
+            return TRUE;
+        });
+
+    SECTION("write(const uint8_t*, size_t)")
+    {
+        serial::Serial serial("Port", 115200, serial::Timeout::simpleTimeout(1000));
+
+        uint8_t message[] = { 0xaa, 0xbb, 0xcc };
+
+        size_t bytes_written = serial.write(message, sizeof(message));
+
+        Verify(Method(g_mock, WriteFile)).Exactly(1);
+        REQUIRE(memcmp(buffer, message, bytes_written) == 0);
+    }
+
+    SECTION("write(const std::vector<uint8_t>&)")
+    {
+        serial::Serial serial("Port", 115200, serial::Timeout::simpleTimeout(1000));
+
+        std::vector<uint8_t> message = { 1, 2, 3, 4, 5, 6, 7, 8 };
+
+        size_t bytes_written = serial.write(message);
+
+        REQUIRE(std::vector<uint8_t>(buffer, buffer + bytes_written) == message);
+    }
+
+    SECTION("write(std::string)")
+    {
+        serial::Serial serial("Port", 115200, serial::Timeout::simpleTimeout(1000));
+
+        std::string message = "Hello, world";
+
+        serial.write(message);
+
+        REQUIRE(std::string(buffer) == message);
+    }
 }
