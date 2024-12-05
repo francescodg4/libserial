@@ -31,3 +31,10 @@
 	- serial::Serial::read, write, isOpen
 
 - serial::Serial remove pimpl
+
+
+5-12-2024
+
+Removed the intermediate class SerialImpl for windows.
+1. Remove src/serial.cc -> does not compile on linux??
+2. Fix compilation errors

@@ -205,25 +205,11 @@ vector<string> Serial::readlines(size_t size, string eol)
     return lines;
 }
 
-size_t Serial::write(const string& data)
+size_t Serial::write(const uint8_t* data, size_t length)
 {
     ScopedWriteLock lock(this->pimpl_);
-    return this->write_(reinterpret_cast<const uint8_t*>(data.c_str()), data.length());
+    return pimpl_->write(data, length);
 }
-
-size_t Serial::write(const std::vector<uint8_t>& data)
-{
-    ScopedWriteLock lock(this->pimpl_);
-    return this->write_(&data[0], data.size());
-}
-
-size_t Serial::write(const uint8_t* data, size_t size)
-{
-    ScopedWriteLock lock(this->pimpl_);
-    return this->write_(data, size);
-}
-
-size_t Serial::write_(const uint8_t* data, size_t length) { return pimpl_->write(data, length); }
 
 void Serial::setPort(const string& port)
 {

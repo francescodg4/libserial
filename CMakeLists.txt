@@ -21,10 +21,12 @@ set(serial_SRCS
 if(APPLE)
     # If OSX
     list(APPEND serial_SRCS src/impl/unix.cc)
+    list(APPEND serial_SRCS src/serial.cc)
     list(APPEND serial_SRCS src/impl/list_ports/list_ports_osx.cc)
 elseif(UNIX)
     # If unix
     list(APPEND serial_SRCS src/impl/unix.cc)
+    list(APPEND serial_SRCS src/serial.cc)
     list(APPEND serial_SRCS src/impl/list_ports/list_ports_linux.cc)
 else()
     # If windows
@@ -67,9 +69,15 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(FakeIt)
 
-add_executable(${PROJECT_NAME}_test
-    test/test_win.cpp
-)
+if(WIN32)
+    add_executable(${PROJECT_NAME}_test
+        test/test_win.cpp
+    )
+else()
+    add_executable(${PROJECT_NAME}_test
+        test/test_unix.cpp
+    )
+endif()
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE _SETUPAPI_ _ADVAPI32_ _KERNEL32_)
 

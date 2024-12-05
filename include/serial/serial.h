@@ -161,6 +161,11 @@ public:
         stopbits_t stopbits = stopbits_one,
         flowcontrol_t flowcontrol = flowcontrol_none);
 
+#ifndef _WIN32
+    /*! Destructor */
+    virtual ~Serial();
+#endif
+
     /*!
      * Opens the serial port as long as the port is set and the port isn't
      * already open.
@@ -618,8 +623,6 @@ private:
 
     // Read common function
     size_t read_(uint8_t* buffer, size_t size);
-    // Write common function
-    size_t write_(const uint8_t* data, size_t length);
 };
 
 class SerialException : public std::exception {
