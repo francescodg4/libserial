@@ -246,7 +246,13 @@ public:
      * \throw serial::PortNotOpenedException
      * \throw serial::SerialException
      */
-    size_t read(std::vector<uint8_t>& buffer, size_t size = 1);
+    size_t read(std::vector<uint8_t>& buffer, size_t size = 1)
+    {
+        std::vector<uint8_t> buffer_(size);
+        size_t bytes_read = read(buffer_.data(), size);
+        buffer.insert(buffer.end(), buffer_.data(), buffer_.data() + bytes_read);
+        return bytes_read;
+    }
 
     /*! Read a given amount of bytes from the serial port into a give buffer.
      *
@@ -259,7 +265,13 @@ public:
      * \throw serial::PortNotOpenedException
      * \throw serial::SerialException
      */
-    size_t read(std::string& buffer, size_t size = 1);
+    size_t read(std::string& buffer, size_t size = 1)
+    {
+        std::string buffer_(size, '\0');
+        size_t bytes_read = read((uint8_t*)buffer_.data(), size);
+        buffer.append(reinterpret_cast<const char*>(buffer_.data()), bytes_read);
+        return bytes_read;
+    }
 
     /*! Read a given amount of bytes from the serial port and return a string
      *  containing the data.
@@ -271,7 +283,12 @@ public:
      * \throw serial::PortNotOpenedException
      * \throw serial::SerialException
      */
-    std::string read(size_t size = 1);
+    std::string read(size_t size = 1)
+    {
+        std::string buffer;
+        read(buffer, size);
+        return buffer;
+    }
 
     /*! Reads in a line or until a given delimiter has been processed.
      *

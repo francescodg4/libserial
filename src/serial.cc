@@ -99,47 +99,6 @@ size_t Serial::read(uint8_t* buffer, size_t size)
     return this->pimpl_->read(buffer, size);
 }
 
-size_t Serial::read(std::vector<uint8_t>& buffer, size_t size)
-{
-    ScopedReadLock lock(this->pimpl_);
-    uint8_t* buffer_ = new uint8_t[size];
-    size_t bytes_read = 0;
-
-    try {
-        bytes_read = this->pimpl_->read(buffer_, size);
-    } catch (const std::exception&) {
-        delete[] buffer_;
-        throw;
-    }
-
-    buffer.insert(buffer.end(), buffer_, buffer_ + bytes_read);
-    delete[] buffer_;
-    return bytes_read;
-}
-
-size_t Serial::read(std::string& buffer, size_t size)
-{
-    ScopedReadLock lock(this->pimpl_);
-    uint8_t* buffer_ = new uint8_t[size];
-    size_t bytes_read = 0;
-    try {
-        bytes_read = this->pimpl_->read(buffer_, size);
-    } catch (const std::exception&) {
-        delete[] buffer_;
-        throw;
-    }
-    buffer.append(reinterpret_cast<const char*>(buffer_), bytes_read);
-    delete[] buffer_;
-    return bytes_read;
-}
-
-string Serial::read(size_t size)
-{
-    std::string buffer;
-    this->read(buffer, size);
-    return buffer;
-}
-
 size_t Serial::readline(string& buffer, size_t size, string eol)
 {
     ScopedReadLock lock(this->pimpl_);

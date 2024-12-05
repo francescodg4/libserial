@@ -36,5 +36,7 @@
 5-12-2024
 
 Removed the intermediate class SerialImpl for windows.
-1. Remove src/serial.cc -> does not compile on linux??
-2. Fix compilation errors
+1. Remove src/serial.cc only from Windows, keep the compilation untouched for Linux
+2. Fix the newly generated compilation errors on Windows.
+
+Implemented read and variants

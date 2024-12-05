@@ -72,9 +72,21 @@ void Serial::setTimeout(const Timeout& timeout)
 
 bool Serial::isOpen() const { return is_open_; }
 
-std::string Serial::read(size_t size)
+size_t Serial::read(uint8_t* buffer, size_t size)
 {
-    return 0;
+    if (!is_open_) {
+        throw PortNotOpenedException("Serial::read");
+    }
+
+    DWORD bytes_read;
+
+    if (!ReadFile(fd_, buffer, static_cast<DWORD>(size), &bytes_read, NULL)) {
+        std::stringstream ss;
+        ss << "Error while reading from the serial port: " << GetLastError();
+        THROW(IOException, ss.str().c_str());
+    }
+
+    return (size_t)(bytes_read);
 }
 
 void Serial::open()

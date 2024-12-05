@@ -41,6 +41,7 @@ struct WindowsApi {
     virtual BOOL WINAPI SetCommTimeouts(_In_ HANDLE hFile, _In_ LPCOMMTIMEOUTS lpCommTimeouts) = 0;
     virtual BOOL WINAPI CloseHandle(_In_ _Post_ptr_invalid_ HANDLE hObject);
     virtual BOOL WINAPI WriteFile(_In_ HANDLE hFile, _In_reads_bytes_opt_(nNumberOfBytesToWrite) LPCVOID lpBuffer, _In_ DWORD nNumberOfBytesToWrite, _Out_opt_ LPDWORD lpNumberOfBytesWritten, _Inout_opt_ LPOVERLAPPED lpOverlapped);
+    virtual _Must_inspect_result_ BOOL WINAPI ReadFile(_In_ HANDLE hFile, _Out_writes_bytes_to_opt_(nNumberOfBytesToRead, *lpNumberOfBytesRead) __out_data_source(FILE) LPVOID lpBuffer, _In_ DWORD nNumberOfBytesToRead, _Out_opt_ LPDWORD lpNumberOfBytesRead, _Inout_opt_ LPOVERLAPPED lpOverlapped);
 };
 
 Mock<WindowsApi> g_mock;
@@ -60,7 +61,8 @@ static void initialize(Mock<WindowsApi>& mock)
         Method(mock, SetCommState),
         Method(mock, SetCommTimeouts),
         Method(mock, CloseHandle),
-        Method(mock, WriteFile));
+        Method(mock, WriteFile),
+        Method(mock, ReadFile));
 
     When(Method(g_mock, CreateFileW)).AlwaysDo([](_In_ LPCWSTR lpFileName, _In_ DWORD dwDesiredAccess, _In_ DWORD dwShareMode, _In_opt_ LPSECURITY_ATTRIBUTES lpSecurityAttributes, _In_ DWORD dwCreationDisposition, _In_ DWORD dwFlagsAndAttributes, _In_opt_ HANDLE hTemplateFile) {
         return (HANDLE)1;
@@ -176,6 +178,16 @@ WINBASEAPI BOOL WINAPI CloseHandle(_In_ _Post_ptr_invalid_ HANDLE hObject)
 WINBASEAPI BOOL WINAPI WriteFile(_In_ HANDLE hFile, _In_reads_bytes_opt_(nNumberOfBytesToWrite) LPCVOID lpBuffer, _In_ DWORD nNumberOfBytesToWrite, _Out_opt_ LPDWORD lpNumberOfBytesWritten, _Inout_opt_ LPOVERLAPPED lpOverlapped)
 {
     return g_mock().WriteFile(hFile, lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten, lpOverlapped);
+}
+
+WINBASEAPI _Must_inspect_result_ BOOL WINAPI ReadFile(
+    _In_ HANDLE hFile,
+    _Out_writes_bytes_to_opt_(nNumberOfBytesToRead, *lpNumberOfBytesRead) __out_data_source(FILE) LPVOID lpBuffer,
+    _In_ DWORD nNumberOfBytesToRead,
+    _Out_opt_ LPDWORD lpNumberOfBytesRead,
+    _Inout_opt_ LPOVERLAPPED lpOverlapped)
+{
+    return g_mock().ReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, lpOverlapped);
 }
 
 TEST_CASE("serial::list_ports enumerates port devicesa and retrieves device info", "[serial]")
@@ -343,5 +355,88 @@ TEST_CASE("serial::Serial::write", "[serial]")
         serial.write(message);
 
         REQUIRE(std::string(buffer) == message);
+    }
+}
+
+TEST_CASE("serial::Serial::read", "[serial]")
+{
+    g_mock.Reset();
+
+    initialize(g_mock);
+
+    char buffer[1024];
+    memset(buffer, 0, sizeof(buffer));
+
+    std::vector<uint8_t> pattern(1024); // the data pattern read from the fake serial
+    srand(42);
+    std::generate(std::begin(pattern), std::end(pattern), []() { return uint8_t(rand()); });
+
+    When(Method(g_mock, ReadFile)).AlwaysDo([&](_In_ HANDLE hFile, _Out_writes_bytes_to_opt_(nNumberOfBytesToRead, *lpNumberOfBytesRead) __out_data_source(FILE) LPVOID lpBuffer, _In_ DWORD nNumberOfBytesToRead, _Out_opt_ LPDWORD lpNumberOfBytesRead, _Inout_opt_ LPOVERLAPPED lpOverlapped) {
+        memcpy(lpBuffer, pattern.data(), nNumberOfBytesToRead);
+        *lpNumberOfBytesRead = nNumberOfBytesToRead;
+        return TRUE;
+    });
+
+    SECTION("read")
+    {
+        serial::Serial serial("Port", 115200, serial::Timeout::simpleTimeout(1000));
+
+        size_t size = serial.read((uint8_t*)buffer, sizeof(buffer));
+
+        REQUIRE(size == sizeof(buffer));
+        REQUIRE(memcmp(buffer, pattern.data(), pattern.size()) == 0);
+    }
+
+    SECTION("read(std::vector&)")
+    {
+        serial::Serial serial("Port", 115200, serial::Timeout::simpleTimeout(1000));
+
+        std::vector<uint8_t> r_buffer; // read buffer data
+        serial.read(r_buffer, 42);
+
+        REQUIRE(r_buffer.size() == 42);
+        REQUIRE(std::equal(std::begin(r_buffer), std::end(r_buffer), std::begin(pattern)));
+    }
+
+    SECTION("read(std::string&)")
+    {
+        serial::Serial serial("Port", 115200, serial::Timeout::simpleTimeout(1000));
+
+        std::string r_buffer;
+        serial.read(r_buffer, 42);
+
+        REQUIRE(r_buffer.size() == 42);
+        REQUIRE(std::equal(std::begin(r_buffer), std::end(r_buffer), std::begin(pattern), [](char a, uint8_t b) { return a == (char)(b); }));
+    }
+
+    SECTION("read(1)")
+    {
+        serial::Serial serial("Port", 115200, serial::Timeout::simpleTimeout(1000));
+
+        std::string r_buffer = serial.read(1);
+
+        REQUIRE(r_buffer.size() == 1);
+    }
+
+    SECTION("read(size_t)")
+    {
+        serial::Serial serial("Port", 115200, serial::Timeout::simpleTimeout(1000));
+
+        std::string r_buffer = serial.read(53);
+
+        REQUIRE(r_buffer.size() == 53);
+        REQUIRE(std::equal(std::begin(r_buffer), std::end(r_buffer), std::begin(pattern), [](char a, uint8_t b) { return a == (char)(b); }));
+    }
+
+    SECTION("read less")
+    {
+        serial::Serial serial("Port", 115200, serial::Timeout::simpleTimeout(1000));
+
+        size_t expected_bytes_to_read = size_t(0.1 * sizeof(buffer));
+
+        size_t actual_bytes_read = serial.read((uint8_t*)buffer, expected_bytes_to_read);
+
+        REQUIRE(actual_bytes_read == expected_bytes_to_read);
+        REQUIRE(memcmp(buffer, pattern.data(), actual_bytes_read) == 0);
     }
 }
