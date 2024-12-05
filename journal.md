@@ -40,3 +40,7 @@ Removed the intermediate class SerialImpl for windows.
 2. Fix the newly generated compilation errors on Windows.
 
 Implemented read and variants
+
+readlines?
+lock?
+flush?
