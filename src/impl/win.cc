@@ -68,6 +68,11 @@ size_t Serial::write(const uint8_t* data, size_t size)
 
 void Serial::setTimeout(const Timeout& timeout)
 {
+    timeout_ = timeout;
+
+    if (is_open_) {
+        reconfigurePort();
+    }
 }
 
 bool Serial::isOpen() const { return is_open_; }
@@ -447,14 +452,6 @@ size_t Serial::SerialImpl::read(uint8_t* buf, size_t size)
 void Serial::SerialImpl::setPort(const string& port) { port_ = port; }
 
 std::string Serial::SerialImpl::getPort() const { return port_; }
-
-void Serial::SerialImpl::setTimeout(const serial::Timeout& timeout)
-{
-    timeout_ = timeout;
-    if (is_open_) {
-        reconfigurePort();
-    }
-}
 
 serial::Timeout Serial::SerialImpl::getTimeout() const { return timeout_; }
 
